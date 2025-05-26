@@ -86,6 +86,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimaps;
 import org.apache.tuweni.bytes.Bytes;
+import org.prover.RlnProverClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -120,6 +121,8 @@ public class TransactionPool implements BlockAddedObserver {
           Multimaps.synchronizedListMultimap(
               Multimaps.newListMultimap(new HashMap<>(), () -> new ArrayList<>(1)));
 
+  private final RlnProverClient rlnProverClient;
+
   public TransactionPool(
       final Supplier<PendingTransactions> pendingTransactionsSupplier,
       final ProtocolSchedule protocolSchedule,
@@ -129,6 +132,28 @@ public class TransactionPool implements BlockAddedObserver {
       final TransactionPoolMetrics metrics,
       final TransactionPoolConfiguration configuration,
       final BlobCache blobCache) {
+    this(
+        pendingTransactionsSupplier,
+        protocolSchedule,
+        protocolContext,
+        transactionBroadcaster,
+        ethContext,
+        metrics,
+        configuration,
+        blobCache,
+        null);
+  }
+
+  public TransactionPool(
+      final Supplier<PendingTransactions> pendingTransactionsSupplier,
+      final ProtocolSchedule protocolSchedule,
+      final ProtocolContext protocolContext,
+      final TransactionBroadcaster transactionBroadcaster,
+      final EthContext ethContext,
+      final TransactionPoolMetrics metrics,
+      final TransactionPoolConfiguration configuration,
+      final BlobCache blobCache,
+      final RlnProverClient rlnProverClient) {
     this.pendingTransactionsSupplier = pendingTransactionsSupplier;
     this.protocolSchedule = protocolSchedule;
     this.protocolContext = protocolContext;
@@ -139,6 +164,10 @@ public class TransactionPool implements BlockAddedObserver {
     this.blockAddedEventOrderedProcessor =
         ethContext.getScheduler().createOrderedProcessor(this::processBlockAddedEvent);
     this.cacheForBlobsOfTransactionsAddedToABlock = blobCache;
+    this.rlnProverClient =
+        rlnProverClient != null
+            ? rlnProverClient
+            : new RlnProverClient("localhost", 8888); // Default disabled client
     initializeBlobMetrics();
     initLogForReplay();
     subscribePendingTransactions(this::mapBlobsOnTransactionAdded);
@@ -272,6 +301,10 @@ public class TransactionPool implements BlockAddedObserver {
             .addArgument(() -> isLocal ? "local" : "remote")
             .addArgument(transaction::toTraceLog)
             .log();
+
+        // Send transaction to RLN Prover service via gRPC
+        sendTransactionToRlnProver(transaction);
+
       } else {
         final var rejectReason =
             status
@@ -303,6 +336,22 @@ public class TransactionPool implements BlockAddedObserver {
     return validationResult.result;
   }
 
+  /**
+   * Send transaction to RLN Prover service via gRPC This method is called asynchronously to avoid
+   * blocking the main transaction pool operation
+   */
+  private void sendTransactionToRlnProver(final Transaction transaction) {
+    CompletableFuture.runAsync(
+        () -> {
+          try {
+            rlnProverClient.sendTransaction(transaction);
+          } catch (Exception e) {
+            LOG.error(
+                "Error sending transaction {} to RLN Prover service", transaction.getHash(), e);
+          }
+        });
+  }
+
   private Optional<Wei> getMaxGasPrice(final Transaction transaction) {
     return transaction.getGasPrice().map(Optional::of).orElse(transaction.getMaxFeePerGas());
   }
@@ -320,7 +369,8 @@ public class TransactionPool implements BlockAddedObserver {
 
   private boolean isPriorityTransaction(final Transaction transaction, final boolean isLocal) {
     if (isLocal && !configuration.getNoLocalPriority()) {
-      // unless no-local-priority option is specified, senders of local sent txs are prioritized
+      // unless no-local-priority option is specified, senders of local sent txs are
+      // prioritized
       return true;
     }
     // otherwise check if the sender belongs to the priority list
@@ -371,7 +421,8 @@ public class TransactionPool implements BlockAddedObserver {
 
   private void reAddTransactions(final List<Transaction> reAddTransactions) {
     if (!reAddTransactions.isEmpty()) {
-      // if adding a blob tx, and it is missing its blob, is a re-org and we should restore the blob
+      // if adding a blob tx, and it is missing its blob, is a re-org and we should
+      // restore the blob
       // from cache.
       var txsByOrigin =
           reAddTransactions.stream()
@@ -511,7 +562,8 @@ public class TransactionPool implements BlockAddedObserver {
       }
     }
     if (hasPriority) {
-      // allow priority transactions to be below minGas as long as the gas price is above the
+      // allow priority transactions to be below minGas as long as the gas price is
+      // above the
       // configured floor
       if (!feeMarket.satisfiesFloorTxFee(transaction)) {
         return TransactionInvalidReason.GAS_PRICE_TOO_LOW;
@@ -549,7 +601,8 @@ public class TransactionPool implements BlockAddedObserver {
 
     // Optimistically get the block header for the chain head without taking a lock,
     // but revert to the safe implementation if it returns an empty optional. (It's
-    // possible the chain head has been updated but the block is still being persisted
+    // possible the chain head has been updated but the block is still being
+    // persisted
     // to storage/cache under the lock).
     return blockchain
         .getBlockHeader(blockchain.getChainHeadHash())
@@ -659,6 +712,7 @@ public class TransactionPool implements BlockAddedObserver {
                     return null;
                   });
       pendingTransactions = new DisabledPendingTransactions();
+
       return saveOperation;
     }
     return CompletableFuture.completedFuture(null);
@@ -715,6 +769,15 @@ public class TransactionPool implements BlockAddedObserver {
   private void initializeBlobMetrics() {
     metrics.createBlobCacheSizeMetric(this::getBlobCacheSize);
     metrics.createBlobMapSizeMetric(this::getBlobMapSize);
+  }
+
+  /**
+   * Get the RLN Prover gRPC client
+   *
+   * @return the gRPC client instance
+   */
+  public RlnProverClient getRlnProverClient() {
+    return rlnProverClient;
   }
 
   class PendingTransactionsListenersProxy {

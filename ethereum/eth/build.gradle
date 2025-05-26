@@ -13,7 +13,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-apply plugin: 'java-library'
+plugins {
+  id 'java-library'
+  id 'com.google.protobuf' version '0.9.5'
+}
 
 jar {
   archiveBaseName = 'besu-eth'
@@ -52,6 +55,7 @@ dependencies {
   implementation project(':services:pipeline')
   implementation project(':services:tasks')
   implementation project(':util')
+  implementation project(':crypto:algorithms')
 
   implementation 'com.google.guava:guava'
   implementation 'io.vertx:vertx-core'
@@ -66,6 +70,13 @@ dependencies {
 
   annotationProcessor "org.immutables:value"
   implementation "org.immutables:value-annotations"
+  implementation 'com.google.protobuf:protobuf-java:3.25.1'
+  implementation 'io.grpc:grpc-stub:1.72.0'
+  implementation 'io.grpc:grpc-protobuf:1.72.0'
+  implementation 'io.grpc:grpc-netty-shaded:1.72.0'
+  if (JavaVersion.current().isJava9Compatible()) {
+    implementation("javax.annotation:javax.annotation-api:1.3.2")
+  }
 
   testImplementation project(':config')
   testImplementation project(path: ':config', configuration: 'testSupportArtifacts')
@@ -96,7 +107,18 @@ dependencies {
   jmhImplementation project(':plugins:rocksdb')
 }
 
-artifacts {
-  testArtifacts testJar
-  testSupportArtifacts testSupportJar
+protobuf {
+  protoc {
+    artifact = "com.google.protobuf:protoc:3.25.3"
+  }
+  plugins {
+    grpc {
+      artifact = "io.grpc:protoc-gen-grpc-java:1.51.1"
+    }
+  }
+  generateProtoTasks {
+    all()*.plugins {
+      grpc {}
+    }
+  }
 }
