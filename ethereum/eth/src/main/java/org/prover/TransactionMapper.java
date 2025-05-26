@@ -14,15 +14,25 @@
  */
 package org.prover;
 
+import org.hyperledger.besu.crypto.SECPSignature;
+
 import java.math.BigInteger;
 import java.util.stream.Collectors;
 
-import net.vac.prover.*;
+import net.vac.prover.AccessListEntries;
+import net.vac.prover.AccessListEntry;
+import net.vac.prover.Address;
+import net.vac.prover.SendTransactionRequest;
+import net.vac.prover.StorageKey;
+import net.vac.prover.TransactionType;
+import net.vac.prover.U256;
+import net.vac.prover.VersionedHash;
+import net.vac.prover.Wei;
 
 public class TransactionMapper {
 
   public static SendTransactionRequest toRequest(
-      org.hyperledger.besu.ethereum.core.Transaction tx) {
+      final org.hyperledger.besu.ethereum.core.Transaction tx) {
     var builder =
         SendTransactionRequest.newBuilder()
             .setForCopy(false)
@@ -88,7 +98,7 @@ public class TransactionMapper {
   }
 
   private static TransactionType mapTransactionType(
-      org.hyperledger.besu.datatypes.TransactionType type) {
+      final org.hyperledger.besu.datatypes.TransactionType type) {
     return switch (type) {
       case FRONTIER -> TransactionType.FRONTIER;
       case ACCESS_LIST -> TransactionType.ACCESS_LIST;
@@ -98,29 +108,28 @@ public class TransactionMapper {
     };
   }
 
-  private static Wei createWei(org.hyperledger.besu.datatypes.Wei besuWei) {
+  private static Wei createWei(final org.hyperledger.besu.datatypes.Wei besuWei) {
     return Wei.newBuilder()
         .setValue(com.google.protobuf.ByteString.copyFrom(besuWei.toBytes().toArrayUnsafe()))
         .build();
   }
 
-  private static Address createAddress(org.hyperledger.besu.datatypes.Address besuAddress) {
+  private static Address createAddress(final org.hyperledger.besu.datatypes.Address besuAddress) {
     return Address.newBuilder()
         .setValue(com.google.protobuf.ByteString.copyFrom(besuAddress.toArrayUnsafe()))
         .build();
   }
 
-  private static SECPSignature createSignature(
-      org.hyperledger.besu.crypto.SECPSignature besuSignature) {
+  private static net.vac.prover.SECPSignature createSignature(final SECPSignature besuSignature) {
     // Use the encodedBytes() method which returns the proper 65-byte signature
     // format
-    return SECPSignature.newBuilder()
+    return net.vac.prover.SECPSignature.newBuilder()
         .setValue(
             com.google.protobuf.ByteString.copyFrom(besuSignature.encodedBytes().toArrayUnsafe()))
         .build();
   }
 
-  private static U256 createU256(BigInteger bigInteger) {
+  private static U256 createU256(final BigInteger bigInteger) {
     byte[] bytes = bigInteger.toByteArray();
     byte[] u256Bytes = new byte[32];
 

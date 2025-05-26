@@ -25,7 +25,9 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import net.vac.prover.*;
+import net.vac.prover.RlnProverGrpc;
+import net.vac.prover.SendTransactionReply;
+import net.vac.prover.SendTransactionRequest;
 
 public class RlnProverClient {
   private static final Logger logger = Logger.getLogger(RlnProverClient.class.getName());
@@ -33,7 +35,7 @@ public class RlnProverClient {
   private final RlnProverGrpc.RlnProverFutureStub futureStub;
 
   /** Construct client connecting to gRPC server at {@code host:port}. */
-  public RlnProverClient(String host, int port) {
+  public RlnProverClient(final String host, final int port) {
     this(
         ManagedChannelBuilder.forAddress(host, port)
             // Channels are secure by default (via SSL/TLS). For the example we disable TLS
@@ -48,12 +50,12 @@ public class RlnProverClient {
    *
    * @param channel the channel to use to make calls.
    */
-  RlnProverClient(ManagedChannel channel) {
+  RlnProverClient(final ManagedChannel channel) {
     futureStub = RlnProverGrpc.newFutureStub(channel);
   }
 
   /** Send transaction to server asynchronously. */
-  public void sendTransaction(Transaction transaction) {
+  public void sendTransaction(final Transaction transaction) {
     logger.info("Will try to send transaction asynchronously...");
     SendTransactionRequest request = TransactionMapper.toRequest(transaction);
     ListenableFuture<SendTransactionReply> future = futureStub.sendTransaction(request);
@@ -62,12 +64,12 @@ public class RlnProverClient {
         future,
         new FutureCallback<SendTransactionReply>() {
           @Override
-          public void onSuccess(SendTransactionReply reply) {
+          public void onSuccess(final SendTransactionReply reply) {
             logger.info("Asynchronous transaction sent successfully: " + reply);
           }
 
           @Override
-          public void onFailure(Throwable t) {
+          public void onFailure(final Throwable t) {
             logger.log(Level.WARNING, "RPC failed asynchronously: {0}", t);
           }
         },
