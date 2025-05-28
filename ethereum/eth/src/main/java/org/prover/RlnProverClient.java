@@ -25,6 +25,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import net.vac.prover.RlnProverGrpc;
 import net.vac.prover.SendTransactionReply;
 import net.vac.prover.SendTransactionRequest;
@@ -34,29 +36,15 @@ public class RlnProverClient {
 
   private final RlnProverGrpc.RlnProverFutureStub futureStub;
 
-  /** Construct client connecting to gRPC server at {@code host:port}. */
   public RlnProverClient(final String host, final int port) {
-    this(
-        ManagedChannelBuilder.forAddress(host, port)
-            // Channels are secure by default (via SSL/TLS). For the example we disable TLS
-            // to avoid
-            // needing certificates.
-            .usePlaintext()
-            .build());
+    this(ManagedChannelBuilder.forAddress(host, port).usePlaintext().build());
   }
 
-  /**
-   * Construct client for given {@link ManagedChannel}.
-   *
-   * @param channel the channel to use to make calls.
-   */
   RlnProverClient(final ManagedChannel channel) {
     futureStub = RlnProverGrpc.newFutureStub(channel);
   }
 
-  /** Send transaction to server asynchronously. */
   public void sendTransaction(final Transaction transaction) {
-    logger.info("Will try to send transaction asynchronously...");
     SendTransactionRequest request = TransactionMapper.toRequest(transaction);
     ListenableFuture<SendTransactionReply> future = futureStub.sendTransaction(request);
 
@@ -64,15 +52,22 @@ public class RlnProverClient {
         future,
         new FutureCallback<SendTransactionReply>() {
           @Override
-          public void onSuccess(final SendTransactionReply reply) {
-            logger.info("Asynchronous transaction sent successfully: " + reply);
-          }
+          public void onSuccess(final SendTransactionReply reply) {}
 
           @Override
           public void onFailure(final Throwable t) {
-            logger.log(Level.WARNING, "RPC failed asynchronously: {0}", t);
+            if (t instanceof StatusRuntimeException) {
+              StatusRuntimeException sre = (StatusRuntimeException) t;
+              if (sre.getStatus().getCode() == Status.Code.NOT_FOUND) {
+                return;
+              }
+            }
+            logger.log(
+                Level.WARNING,
+                "Failed to send transaction to RLN Prover service. Service may be offline or unreachable: {0}",
+                t.getMessage());
           }
         },
-        MoreExecutors.directExecutor()); // Executes the callbacks in the calling thread
+        MoreExecutors.directExecutor());
   }
 }

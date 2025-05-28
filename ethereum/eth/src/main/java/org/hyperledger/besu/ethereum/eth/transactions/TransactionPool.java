@@ -336,10 +336,6 @@ public class TransactionPool implements BlockAddedObserver {
     return validationResult.result;
   }
 
-  /**
-   * Send transaction to RLN Prover service via gRPC This method is called asynchronously to avoid
-   * blocking the main transaction pool operation
-   */
   private void sendTransactionToRlnProver(final Transaction transaction) {
     CompletableFuture.runAsync(
         () -> {
@@ -771,11 +767,6 @@ public class TransactionPool implements BlockAddedObserver {
     metrics.createBlobMapSizeMetric(this::getBlobMapSize);
   }
 
-  /**
-   * Get the RLN Prover gRPC client
-   *
-   * @return the gRPC client instance
-   */
   public RlnProverClient getRlnProverClient() {
     return rlnProverClient;
   }

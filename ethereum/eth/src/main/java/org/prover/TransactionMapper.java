@@ -44,7 +44,6 @@ public class TransactionMapper {
             .setPayload(com.google.protobuf.ByteString.copyFrom(tx.getPayload().toArrayUnsafe()))
             .setSender(createAddress(tx.getSender()));
 
-    // Optional fields - only set if present
     tx.getGasPrice().ifPresent(gp -> builder.setGasPrice(createWei(gp)));
     tx.getMaxPriorityFeePerGas().ifPresent(mpf -> builder.setMaxPriorityFeePerGas(createWei(mpf)));
     tx.getMaxFeePerGas().ifPresent(mf -> builder.setMaxFeePerGas(createWei(mf)));
@@ -52,7 +51,6 @@ public class TransactionMapper {
     tx.getTo().ifPresent(to -> builder.setTo(createAddress(to)));
     tx.getChainId().ifPresent(cid -> builder.setChainId(createU256(cid)));
 
-    // Access list - simplified mapping
     tx.getAccessList()
         .ifPresent(
             accessList ->
@@ -79,7 +77,6 @@ public class TransactionMapper {
                                     .build())
                         .collect(Collectors.toList())));
 
-    // Versioned hashes - simplified mapping
     tx.getVersionedHashes()
         .ifPresent(
             hashes ->
@@ -121,8 +118,6 @@ public class TransactionMapper {
   }
 
   private static net.vac.prover.SECPSignature createSignature(final SECPSignature besuSignature) {
-    // Use the encodedBytes() method which returns the proper 65-byte signature
-    // format
     return net.vac.prover.SECPSignature.newBuilder()
         .setValue(
             com.google.protobuf.ByteString.copyFrom(besuSignature.encodedBytes().toArrayUnsafe()))
