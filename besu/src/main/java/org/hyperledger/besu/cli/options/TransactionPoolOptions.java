@@ -62,6 +62,11 @@ public class TransactionPoolOptions implements CLIOptions<TransactionPoolConfigu
   private static final String TX_POOL_PRIORITY_SENDERS = "--tx-pool-priority-senders";
   private static final String TX_POOL_MIN_GAS_PRICE = "--tx-pool-min-gas-price";
 
+  private static final String TX_POOL_RLN_PROVER_CLIENT_ENABLED =
+      "--tx-pool-rln-prover-client-enabled";
+  private static final String TX_POOL_RLN_PROVER_CLIENT_HOST = "--tx-pool-rln-prover-client-host";
+  private static final String TX_POOL_RLN_PROVER_CLIENT_PORT = "--tx-pool-rln-prover-client-port";
+
   private TransactionPoolValidatorService transactionPoolValidatorService;
 
   @CommandLine.Option(
@@ -148,6 +153,29 @@ public class TransactionPoolOptions implements CLIOptions<TransactionPoolConfigu
               + "(not to be confused with min-gas-price, that is applied on block creation) (default: ${DEFAULT-VALUE})",
       arity = "1")
   private Wei minGasPrice = TransactionPoolConfiguration.DEFAULT_TX_POOL_MIN_GAS_PRICE;
+
+  @CommandLine.Option(
+      names = {TX_POOL_RLN_PROVER_CLIENT_ENABLED},
+      paramLabel = "<Boolean>",
+      description = "Enable RLN Prover Client (default: ${DEFAULT-VALUE})",
+      fallbackValue = "true",
+      arity = "0..1")
+  private boolean rlnProverClientEnabled =
+      TransactionPoolConfiguration.DEFAULT_RLN_PROVER_CLIENT_ENABLED;
+
+  @CommandLine.Option(
+      names = {TX_POOL_RLN_PROVER_CLIENT_HOST},
+      paramLabel = "<String>",
+      description = "RLN Prover Client host (default: ${DEFAULT-VALUE})",
+      arity = "1")
+  private String rlnProverClientHost = TransactionPoolConfiguration.DEFAULT_RLN_PROVER_CLIENT_HOST;
+
+  @CommandLine.Option(
+      names = {TX_POOL_RLN_PROVER_CLIENT_PORT},
+      paramLabel = "<Integer>",
+      description = "RLN Prover Client port (default: ${DEFAULT-VALUE})",
+      arity = "1")
+  private Integer rlnProverClientPort = TransactionPoolConfiguration.DEFAULT_RLN_PROVER_CLIENT_PORT;
 
   @CommandLine.ArgGroup(
       validate = false,
@@ -318,6 +346,9 @@ public class TransactionPoolOptions implements CLIOptions<TransactionPoolConfigu
     options.strictTxReplayProtectionEnabled = config.getStrictTransactionReplayProtectionEnabled();
     options.prioritySenders = config.getPrioritySenders();
     options.minGasPrice = config.getMinGasPrice();
+    options.rlnProverClientEnabled = config.isRlnProverClientEnabled();
+    options.rlnProverClientHost = config.getRlnProverClientHost();
+    options.rlnProverClientPort = config.getRlnProverClientPort();
     options.layeredOptions.txPoolLayerMaxCapacity =
         config.getPendingTransactionsLayerMaxCapacityBytes();
     options.layeredOptions.txPoolMaxPrioritized = config.getMaxPrioritizedTransactions();
@@ -379,6 +410,9 @@ public class TransactionPoolOptions implements CLIOptions<TransactionPoolConfigu
         .strictTransactionReplayProtectionEnabled(strictTxReplayProtectionEnabled)
         .prioritySenders(prioritySenders)
         .minGasPrice(minGasPrice)
+        .isRlnProverClientEnabled(rlnProverClientEnabled)
+        .rlnProverClientHost(rlnProverClientHost)
+        .rlnProverClientPort(rlnProverClientPort)
         .pendingTransactionsLayerMaxCapacityBytes(layeredOptions.txPoolLayerMaxCapacity)
         .maxPrioritizedTransactions(layeredOptions.txPoolMaxPrioritized)
         .maxPrioritizedTransactionsByType(layeredOptions.txPoolMaxPrioritizedByType)

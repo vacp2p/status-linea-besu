@@ -165,9 +165,12 @@ public class TransactionPool implements BlockAddedObserver {
         ethContext.getScheduler().createOrderedProcessor(this::processBlockAddedEvent);
     this.cacheForBlobsOfTransactionsAddedToABlock = blobCache;
     this.rlnProverClient =
-        rlnProverClient != null
-            ? rlnProverClient
-            : new RlnProverClient("localhost", 8888); // Default disabled client
+        configuration.isRlnProverClientEnabled()
+            ? null
+            : new RlnProverClient(
+                configuration.getRlnProverClientHost(), configuration.getRlnProverClientPort());
+    System.out.println("RLN Prover Client initialized: " + rlnProverClient);
+
     initializeBlobMetrics();
     initLogForReplay();
     subscribePendingTransactions(this::mapBlobsOnTransactionAdded);
