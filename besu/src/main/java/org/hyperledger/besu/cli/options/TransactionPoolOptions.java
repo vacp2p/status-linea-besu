@@ -61,6 +61,8 @@ public class TransactionPoolOptions implements CLIOptions<TransactionPoolConfigu
       "--strict-tx-replay-protection-enabled";
   private static final String TX_POOL_PRIORITY_SENDERS = "--tx-pool-priority-senders";
   private static final String TX_POOL_MIN_GAS_PRICE = "--tx-pool-min-gas-price";
+  private static final String TX_POOL_GRPC_VALIDATION_ENDPOINT =
+      "--tx-pool-grpc-validation-endpoint";
 
   private TransactionPoolValidatorService transactionPoolValidatorService;
 
@@ -148,6 +150,15 @@ public class TransactionPoolOptions implements CLIOptions<TransactionPoolConfigu
               + "(not to be confused with min-gas-price, that is applied on block creation) (default: ${DEFAULT-VALUE})",
       arity = "1")
   private Wei minGasPrice = TransactionPoolConfiguration.DEFAULT_TX_POOL_MIN_GAS_PRICE;
+
+  @CommandLine.Option(
+      names = {TX_POOL_GRPC_VALIDATION_ENDPOINT},
+      paramLabel = "<host:port>",
+      description =
+          "Enable gRPC validation for local transactions by specifying validation service endpoint (e.g., localhost:9090). "
+              + "If not specified, gRPC validation is disabled.",
+      arity = "1")
+  private String grpcValidationEndpoint;
 
   @CommandLine.ArgGroup(
       validate = false,
@@ -298,6 +309,34 @@ public class TransactionPoolOptions implements CLIOptions<TransactionPoolConfigu
   public void setPluginTransactionValidatorService(
       final TransactionPoolValidatorService transactionPoolValidatorService) {
     this.transactionPoolValidatorService = transactionPoolValidatorService;
+
+    // Register gRPC validator if endpoint is configured
+    if (grpcValidationEndpoint != null && !grpcValidationEndpoint.trim().isEmpty()) {
+      try {
+        // Try to dynamically load our gRPC validator factory
+        Class<?> factoryClass =
+            Class.forName(
+                "org.hyperledger.besu.ethereum.eth.transactions.grpc.GrpcTransactionPoolValidatorFactory");
+        Object factory =
+            factoryClass.getConstructor(String.class).newInstance(grpcValidationEndpoint);
+
+        // Register the factory with the service
+        transactionPoolValidatorService
+            .getClass()
+            .getMethod(
+                "registerPluginTransactionValidatorFactory",
+                Class.forName(
+                    "org.hyperledger.besu.plugin.services.txvalidator.PluginTransactionPoolValidatorFactory"))
+            .invoke(transactionPoolValidatorService, factory);
+
+        // Use reflection to call the method to avoid compile-time dependency
+      } catch (Exception e) {
+        // Log warning if gRPC validator cannot be loaded (graceful degradation)
+        System.err.println(
+            "Warning: Could not load gRPC transaction validator, proceeding without gRPC validation: "
+                + e.getMessage());
+      }
+    }
   }
 
   /**

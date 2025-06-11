@@ -217,6 +217,7 @@ tx-pool-max-size=1234
 tx-pool-limit-by-account-percentage=0.017
 tx-pool-min-gas-price=1000
 tx-pool-min-score=100
+tx-pool-grpc-validation-endpoint="localhost:8080"
 
 # Revert Reason
 revert-reason-enabled=false
