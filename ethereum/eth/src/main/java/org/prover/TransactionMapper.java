@@ -14,95 +14,33 @@
  */
 package org.prover;
 
-import org.hyperledger.besu.crypto.SECPSignature;
-
 import java.math.BigInteger;
-import java.util.stream.Collectors;
 
-import net.vac.prover.AccessListEntries;
-import net.vac.prover.AccessListEntry;
 import net.vac.prover.Address;
 import net.vac.prover.SendTransactionRequest;
-import net.vac.prover.StorageKey;
-import net.vac.prover.TransactionType;
 import net.vac.prover.U256;
-import net.vac.prover.VersionedHash;
 import net.vac.prover.Wei;
 
 public class TransactionMapper {
 
   public static SendTransactionRequest toRequest(
       final org.hyperledger.besu.ethereum.core.Transaction tx) {
-    var builder =
-        SendTransactionRequest.newBuilder()
-            .setForCopy(false)
-            .setTransactionType(mapTransactionType(tx.getType()))
-            .setNonce(tx.getNonce())
-            .setGasLimit(tx.getGasLimit())
-            .setValue(createWei(tx.getValue()))
-            .setSignature(createSignature(tx.getSignature()))
-            .setPayload(com.google.protobuf.ByteString.copyFrom(tx.getPayload().toArrayUnsafe()))
-            .setSender(createAddress(tx.getSender()));
+    var builder = SendTransactionRequest.newBuilder();
 
+    // Set optional gasPrice if present
     tx.getGasPrice().ifPresent(gp -> builder.setGasPrice(createWei(gp)));
-    tx.getMaxPriorityFeePerGas().ifPresent(mpf -> builder.setMaxPriorityFeePerGas(createWei(mpf)));
-    tx.getMaxFeePerGas().ifPresent(mf -> builder.setMaxFeePerGas(createWei(mf)));
-    tx.getMaxFeePerBlobGas().ifPresent(mfb -> builder.setMaxFeePerBlobGas(createWei(mfb)));
-    tx.getTo().ifPresent(to -> builder.setTo(createAddress(to)));
+
+    // Set optional sender if present
+    builder.setSender(createAddress(tx.getSender()));
+
+    // Set optional chainId if present
     tx.getChainId().ifPresent(cid -> builder.setChainId(createU256(cid)));
 
-    tx.getAccessList()
-        .ifPresent(
-            accessList ->
-                builder.addAllMaybeAccessList(
-                    accessList.stream()
-                        .map(
-                            entry ->
-                                AccessListEntries.newBuilder()
-                                    .addEntries(
-                                        AccessListEntry.newBuilder()
-                                            .setAddress(createAddress(entry.address()))
-                                            .addAllStorageKeys(
-                                                entry.storageKeys().stream()
-                                                    .map(
-                                                        key ->
-                                                            StorageKey.newBuilder()
-                                                                .setValue(
-                                                                    com.google.protobuf.ByteString
-                                                                        .copyFrom(
-                                                                            key.toArrayUnsafe()))
-                                                                .build())
-                                                    .collect(Collectors.toList()))
-                                            .build())
-                                    .build())
-                        .collect(Collectors.toList())));
-
-    tx.getVersionedHashes()
-        .ifPresent(
-            hashes ->
-                builder.addAllVersionedHashes(
-                    hashes.stream()
-                        .map(
-                            hash ->
-                                VersionedHash.newBuilder()
-                                    .setValue(
-                                        com.google.protobuf.ByteString.copyFrom(
-                                            hash.toBytes().toArrayUnsafe()))
-                                    .build())
-                        .collect(Collectors.toList())));
+    // Set transaction hash (calculate from transaction)
+    builder.setTransactionHash(
+        com.google.protobuf.ByteString.copyFrom(tx.getHash().toArrayUnsafe()));
 
     return builder.build();
-  }
-
-  private static TransactionType mapTransactionType(
-      final org.hyperledger.besu.datatypes.TransactionType type) {
-    return switch (type) {
-      case FRONTIER -> TransactionType.FRONTIER;
-      case ACCESS_LIST -> TransactionType.ACCESS_LIST;
-      case EIP1559 -> TransactionType.EIP1559;
-      case BLOB -> TransactionType.BLOB;
-      case DELEGATE_CODE -> TransactionType.DELEGATE_CODE;
-    };
   }
 
   private static Wei createWei(final org.hyperledger.besu.datatypes.Wei besuWei) {
@@ -114,13 +52,6 @@ public class TransactionMapper {
   private static Address createAddress(final org.hyperledger.besu.datatypes.Address besuAddress) {
     return Address.newBuilder()
         .setValue(com.google.protobuf.ByteString.copyFrom(besuAddress.toArrayUnsafe()))
-        .build();
-  }
-
-  private static net.vac.prover.SECPSignature createSignature(final SECPSignature besuSignature) {
-    return net.vac.prover.SECPSignature.newBuilder()
-        .setValue(
-            com.google.protobuf.ByteString.copyFrom(besuSignature.encodedBytes().toArrayUnsafe()))
         .build();
   }
 
