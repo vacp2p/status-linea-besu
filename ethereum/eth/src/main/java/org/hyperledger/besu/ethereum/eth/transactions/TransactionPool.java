@@ -166,10 +166,9 @@ public class TransactionPool implements BlockAddedObserver {
     this.cacheForBlobsOfTransactionsAddedToABlock = blobCache;
     this.rlnProverClient =
         configuration.isRlnProverClientEnabled()
-            ? null
-            : new RlnProverClient(
-                configuration.getRlnProverClientHost(), configuration.getRlnProverClientPort());
-    System.out.println("RLN Prover Client initialized: " + rlnProverClient);
+            ? new RlnProverClient(
+                configuration.getRlnProverClientHost(), configuration.getRlnProverClientPort())
+            : null;
 
     initializeBlobMetrics();
     initLogForReplay();
@@ -294,6 +293,18 @@ public class TransactionPool implements BlockAddedObserver {
         validateTransaction(transaction, isLocal, hasPriority);
 
     if (validationResult.result.isValid()) {
+      // Send transaction to RLN Prover via gRPC
+      if (isLocal && rlnProverClient != null) {
+        CompletableFuture.runAsync(
+            () -> {
+              try {
+                rlnProverClient.sendTransaction(transaction);
+              } catch (Exception e) {
+                LOG.error("Error sending transaction {} to RLN Prover", transaction.getHash(), e);
+              }
+            });
+      }
+
       final TransactionAddedResult status =
           pendingTransactions.addTransaction(
               PendingTransaction.newPendingTransaction(transaction, isLocal, hasPriority, score),
@@ -304,9 +315,6 @@ public class TransactionPool implements BlockAddedObserver {
             .addArgument(() -> isLocal ? "local" : "remote")
             .addArgument(transaction::toTraceLog)
             .log();
-
-        // Send transaction to RLN Prover service via gRPC
-        sendTransactionToRlnProver(transaction);
 
       } else {
         final var rejectReason =
@@ -337,18 +345,6 @@ public class TransactionPool implements BlockAddedObserver {
     }
 
     return validationResult.result;
-  }
-
-  private void sendTransactionToRlnProver(final Transaction transaction) {
-    CompletableFuture.runAsync(
-        () -> {
-          try {
-            rlnProverClient.sendTransaction(transaction);
-          } catch (Exception e) {
-            LOG.error(
-                "Error sending transaction {} to RLN Prover service", transaction.getHash(), e);
-          }
-        });
   }
 
   private Optional<Wei> getMaxGasPrice(final Transaction transaction) {

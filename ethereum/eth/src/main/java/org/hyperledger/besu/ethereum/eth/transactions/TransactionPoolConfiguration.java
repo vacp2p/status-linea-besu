@@ -82,9 +82,9 @@ public interface TransactionPoolConfiguration {
   Wei DEFAULT_TX_POOL_MIN_GAS_PRICE = Wei.of(1000);
   byte DEFAULT_TX_POOL_MIN_SCORE = -128;
 
-  boolean DEFAULT_RLN_PROVER_CLIENT_ENABLED = false;
-  String DEFAULT_RLN_PROVER_CLIENT_HOST = "localhost";
-  int DEFAULT_RLN_PROVER_CLIENT_PORT = 8888;
+  boolean DEFAULT_TX_POOL_RLN_PROVER_CLIENT_ENABLED = false;
+  String DEFAULT_TX_POOL_RLN_PROVER_CLIENT_HOST = "localhost";
+  int DEFAULT_TX_POOL_RLN_PROVER_CLIENT_PORT = 8888;
 
   TransactionPoolConfiguration DEFAULT = ImmutableTransactionPoolConfiguration.builder().build();
 
@@ -185,17 +185,17 @@ public interface TransactionPoolConfiguration {
 
   @Value.Default
   default boolean isRlnProverClientEnabled() {
-    return DEFAULT_RLN_PROVER_CLIENT_ENABLED;
+    return DEFAULT_TX_POOL_RLN_PROVER_CLIENT_ENABLED;
   }
 
   @Value.Default
   default String getRlnProverClientHost() {
-    return DEFAULT_RLN_PROVER_CLIENT_HOST;
+    return DEFAULT_TX_POOL_RLN_PROVER_CLIENT_HOST;
   }
 
   @Value.Default
   default int getRlnProverClientPort() {
-    return DEFAULT_RLN_PROVER_CLIENT_PORT;
+    return DEFAULT_TX_POOL_RLN_PROVER_CLIENT_PORT;
   }
 
   @Value.Default

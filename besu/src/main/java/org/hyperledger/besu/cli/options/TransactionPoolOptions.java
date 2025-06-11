@@ -161,21 +161,23 @@ public class TransactionPoolOptions implements CLIOptions<TransactionPoolConfigu
       fallbackValue = "true",
       arity = "0..1")
   private boolean rlnProverClientEnabled =
-      TransactionPoolConfiguration.DEFAULT_RLN_PROVER_CLIENT_ENABLED;
+      TransactionPoolConfiguration.DEFAULT_TX_POOL_RLN_PROVER_CLIENT_ENABLED;
 
   @CommandLine.Option(
       names = {TX_POOL_RLN_PROVER_CLIENT_HOST},
       paramLabel = "<String>",
       description = "RLN Prover Client host (default: ${DEFAULT-VALUE})",
       arity = "1")
-  private String rlnProverClientHost = TransactionPoolConfiguration.DEFAULT_RLN_PROVER_CLIENT_HOST;
+  private String rlnProverClientHost =
+      TransactionPoolConfiguration.DEFAULT_TX_POOL_RLN_PROVER_CLIENT_HOST;
 
   @CommandLine.Option(
       names = {TX_POOL_RLN_PROVER_CLIENT_PORT},
       paramLabel = "<Integer>",
       description = "RLN Prover Client port (default: ${DEFAULT-VALUE})",
       arity = "1")
-  private Integer rlnProverClientPort = TransactionPoolConfiguration.DEFAULT_RLN_PROVER_CLIENT_PORT;
+  private Integer rlnProverClientPort =
+      TransactionPoolConfiguration.DEFAULT_TX_POOL_RLN_PROVER_CLIENT_PORT;
 
   @CommandLine.ArgGroup(
       validate = false,
