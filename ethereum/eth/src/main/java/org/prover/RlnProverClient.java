@@ -25,7 +25,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import net.vac.prover.RlnProverGrpc;
 import net.vac.prover.SendTransactionReply;
@@ -33,7 +32,6 @@ import net.vac.prover.SendTransactionRequest;
 
 public class RlnProverClient {
   private static final Logger logger = Logger.getLogger(RlnProverClient.class.getName());
-
   private final RlnProverGrpc.RlnProverFutureStub futureStub;
 
   public RlnProverClient(final String host, final int port) {
@@ -46,7 +44,6 @@ public class RlnProverClient {
 
   public void sendTransaction(final Transaction transaction) {
     logger.log(Level.INFO, "Sending transaction to RLN Prover service: {0}", transaction);
-
     SendTransactionRequest request = TransactionMapper.toRequest(transaction);
     ListenableFuture<SendTransactionReply> future = futureStub.sendTransaction(request);
 
@@ -62,24 +59,11 @@ public class RlnProverClient {
           public void onFailure(final Throwable t) {
             if (t instanceof StatusRuntimeException) {
               StatusRuntimeException sre = (StatusRuntimeException) t;
-              Status.Code code = sre.getStatus().getCode();
+              String errorMessage = sre.getStatus().getDescription();
 
-              if (code == Status.Code.NOT_FOUND) {
-                logger.log(
-                    Level.WARNING,
-                    "Transaction failed: Sender not found (NOT_FOUND). This may indicate the sender is not registered.");
-                return;
-              }
-
-              logger.log(
-                  Level.SEVERE,
-                  "gRPC error occurred while sending transaction. Status: {0}, Description: {1}",
-                  new Object[] {code, sre.getStatus().getDescription()});
+              logger.log(Level.WARNING, "Prover service error: {0}", errorMessage);
             } else {
-              logger.log(
-                  Level.SEVERE,
-                  "Unexpected error occurred while sending transaction to RLN Prover service",
-                  t);
+              logger.log(Level.SEVERE, "Network error or prover service is not online", t);
             }
           }
         },
