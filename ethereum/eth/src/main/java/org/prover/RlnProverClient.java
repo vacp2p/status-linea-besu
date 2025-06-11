@@ -45,6 +45,8 @@ public class RlnProverClient {
   }
 
   public void sendTransaction(final Transaction transaction) {
+    logger.log(Level.INFO, "Sending transaction to RLN Prover service: {0}", transaction);
+
     SendTransactionRequest request = TransactionMapper.toRequest(transaction);
     ListenableFuture<SendTransactionReply> future = futureStub.sendTransaction(request);
 
@@ -52,20 +54,33 @@ public class RlnProverClient {
         future,
         new FutureCallback<SendTransactionReply>() {
           @Override
-          public void onSuccess(final SendTransactionReply reply) {}
+          public void onSuccess(final SendTransactionReply reply) {
+            logger.log(Level.INFO, "Successfully sent transaction. Received reply: {0}", reply);
+          }
 
           @Override
           public void onFailure(final Throwable t) {
             if (t instanceof StatusRuntimeException) {
               StatusRuntimeException sre = (StatusRuntimeException) t;
-              if (sre.getStatus().getCode() == Status.Code.NOT_FOUND) {
+              Status.Code code = sre.getStatus().getCode();
+
+              if (code == Status.Code.NOT_FOUND) {
+                logger.log(
+                    Level.WARNING,
+                    "Transaction failed: Sender not found (NOT_FOUND). This may indicate the sender is not registered.");
                 return;
               }
+
+              logger.log(
+                  Level.SEVERE,
+                  "gRPC error occurred while sending transaction. Status: {0}, Description: {1}",
+                  new Object[] {code, sre.getStatus().getDescription()});
+            } else {
+              logger.log(
+                  Level.SEVERE,
+                  "Unexpected error occurred while sending transaction to RLN Prover service",
+                  t);
             }
-            logger.log(
-                Level.WARNING,
-                "Failed to send transaction to RLN Prover service. Service may be offline or unreachable: {0}",
-                t.getMessage());
           }
         },
         MoreExecutors.directExecutor());
